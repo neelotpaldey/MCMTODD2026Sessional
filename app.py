@@ -15,6 +15,9 @@ SHEET_ID = "158EXs5cgEn3PPnQ-RnYYkysy17AnAgzCRaOAMkynNcU"
 # Add new tabs here and they will appear in the dropdowns automatically.
 SHEET_TABS = ["MGKVP 5", "MGKVP 3", "VBSPU 5", "VBSPU 3"]
 
+# Minimum marks needed to pass, for each university
+PASS_MARKS = {"MGKVP": 8.5, "VBSPU": 10.5}
+
 ABSENT_WORDS = ["ABS", "AB", "ABSENT"]
 MEDICAL_WORDS = ["ML"]
 
@@ -84,8 +87,28 @@ def get_result(raw_value):
     return text, "marks"
 
 
-def build_card(subject, value, kind):
+def get_pass_icon(value, kind, university):
+    """Thumbs up for pass, thumbs down for fail. Empty for non-numeric results."""
+    if kind != "marks":
+        return ""
+
+    try:
+        marks = float(value)
+    except ValueError:
+        return ""
+
+    if marks >= PASS_MARKS[university]:
+        return "👍"
+
+    return "👎"
+
+
+def build_card(subject, value, kind, icon):
     background, text_color, border = COLORS[kind]
+    icon_html = ""
+    if icon != "":
+        icon_html = '<div style="font-size:1.4rem;margin-top:2px;">' + icon + "</div>"
+
     return (
         '<div style="background:' + background
         + ";color:" + text_color
@@ -96,7 +119,9 @@ def build_card(subject, value, kind):
         + "</div>"
         + '<div style="font-size:1.4rem;font-weight:700;margin-top:4px;">'
         + html.escape(value)
-        + "</div></div>"
+        + "</div>"
+        + icon_html
+        + "</div>"
     )
 
 
@@ -175,9 +200,16 @@ subjects = [col for col in data.columns if col not in ["Name", "Label"]]
 
 st.divider()
 st.subheader(student["Name"])
-st.caption(selected_university + " • Semester " + selected_semester)
+st.caption(
+    selected_university
+    + " • Semester "
+    + selected_semester
+    + " • Pass marks: "
+    + str(PASS_MARKS[selected_university])
+)
 
 columns = st.columns(len(subjects))
 for column, subject in zip(columns, subjects):
     value, kind = get_result(student[subject])
-    column.markdown(build_card(subject, value, kind), unsafe_allow_html=True)
+    icon = get_pass_icon(value, kind, selected_university)
+    column.markdown(build_card(subject, value, kind, icon), unsafe_allow_html=True)
