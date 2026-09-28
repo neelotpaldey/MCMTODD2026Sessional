@@ -18,17 +18,28 @@ SHEET_TABS = ["MGKVP 5", "MGKVP 3", "VBSPU 5", "VBSPU 3"]
 # Minimum marks needed to pass, for each university
 PASS_MARKS = {"MGKVP": 8.5, "VBSPU": 10.5}
 
+# The number after "gid=" in the browser address bar when each tab is open.
+# Fill these in so text marks (ML, ABS, JOB) are never dropped by Google.
+SHEET_GIDS = {
+    "MGKVP 5": "",
+    "MGKVP 3": "",
+    "VBSPU 5": "",
+    "VBSPU 3": "",
+}
+
 # Tabs where a student takes only one of these subjects (checked in this order)
 EITHER_OR_SUBJECTS = {"MGKVP 5": ["SPM", "NM"]}
 
 ABSENT_WORDS = ["ABS", "AB", "ABSENT"]
 MEDICAL_WORDS = ["ML"]
+JOB_WORDS = ["JOB"]
 
 # Card colours for each kind of result: (background, text, border)
 COLORS = {
     "marks": ("#d1e7dd", "#0f5132", "#badbcc"),
     "absent": ("#f8d7da", "#842029", "#f1aeb5"),
     "medical": ("#fff3cd", "#664d03", "#ffe69c"),
+    "job": ("#cfe2ff", "#084298", "#9ec5fe"),
     "upcoming": ("#e2e3e5", "#41464b", "#c4c8cb"),
 }
 
@@ -39,6 +50,18 @@ st.set_page_config(page_title="Sessional Marks Odd 2026", page_icon="🎓", layo
 # Helper functions
 # ------------------------------------------------------------------
 def build_csv_url(tab_name):
+    gid = SHEET_GIDS.get(tab_name, "")
+
+    # Export gives every cell exactly as typed (recommended)
+    if gid != "":
+        return (
+            "https://docs.google.com/spreadsheets/d/"
+            + SHEET_ID
+            + "/export?format=csv&gid="
+            + gid
+        )
+
+    # Fallback by tab name: Google may hide text cells in mostly-numeric columns
     return (
         "https://docs.google.com/spreadsheets/d/"
         + SHEET_ID
@@ -86,6 +109,9 @@ def get_result(raw_value):
 
     if text.upper() in MEDICAL_WORDS:
         return "Medical", "medical"
+
+    if text.upper() in JOB_WORDS:
+        return "JOB", "job"
 
     return text, "marks"
 
@@ -211,6 +237,14 @@ except Exception as error:
     st.info("Make sure the Google Sheet is shared as 'Anyone with the link can view'.")
     st.code(type(error).__name__ + ": " + str(error))
     st.stop()
+
+if SHEET_GIDS.get(tab_name, "") == "":
+    st.warning(
+        "gid not set for "
+        + tab_name
+        + ". Text marks like ML, ABS or JOB may show as Upcoming. "
+        + "Add the gid in SHEET_GIDS at the top of app.py."
+    )
 
 selected_label = st.selectbox(
     "Student name",
