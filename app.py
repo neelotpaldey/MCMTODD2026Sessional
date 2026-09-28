@@ -1,4 +1,8 @@
+import html
+import io
+
 import pandas as pd
+import requests
 import streamlit as st
 from urllib.parse import quote
 
@@ -12,8 +16,17 @@ SHEET_ID = "158EXs5cgEn3PPnQ-RnYYkysy17AnAgzCRaOAMkynNcU"
 SHEET_TABS = ["MGKVP 5", "MGKVP 3", "VBSPU 5", "VBSPU 3"]
 
 ABSENT_WORDS = ["ABS", "AB", "ABSENT"]
+MEDICAL_WORDS = ["ML"]
 
-st.set_page_config(page_title="Student Marks", page_icon="🎓", layout="centered")
+# Card colours for each kind of result: (background, text, border)
+COLORS = {
+    "marks": ("#d1e7dd", "#0f5132", "#badbcc"),
+    "absent": ("#f8d7da", "#842029", "#f1aeb5"),
+    "medical": ("#fff3cd", "#664d03", "#ffe69c"),
+    "upcoming": ("#e2e3e5", "#41464b", "#c4c8cb"),
+}
+
+st.set_page_config(page_title="Sessional Marks Odd 2026", page_icon="🎓", layout="centered")
 
 
 # ------------------------------------------------------------------
@@ -45,20 +58,43 @@ def clean_dataframe(df):
 
 @st.cache_data(ttl=60)
 def load_tab(tab_name):
-    df = pd.read_csv(build_csv_url(tab_name), dtype=str, keep_default_na=False)
+    response = requests.get(build_csv_url(tab_name), timeout=20)
+    response.raise_for_status()
+    text = response.content.decode("utf-8")
+    df = pd.read_csv(io.StringIO(text), dtype=str, keep_default_na=False)
     return clean_dataframe(df)
 
 
-def get_display_value(raw_value):
+def get_result(raw_value):
+    """Returns (text to show, kind of result)."""
     text = str(raw_value).strip()
 
     if text == "" or text.lower() == "nan":
-        return "Upcoming"
+        return "Upcoming", "upcoming"
 
     if text.upper() in ABSENT_WORDS:
-        return "Absent"
+        return "Absent", "absent"
 
-    return text
+    if text.upper() in MEDICAL_WORDS:
+        return "Medical", "medical"
+
+    return text, "marks"
+
+
+def build_card(subject, value, kind):
+    background, text_color, border = COLORS[kind]
+    return (
+        '<div style="background:' + background
+        + ";color:" + text_color
+        + ";border:1px solid " + border
+        + ';border-radius:10px;padding:14px 8px;text-align:center;">'
+        + '<div style="font-size:0.85rem;font-weight:600;">'
+        + html.escape(subject)
+        + "</div>"
+        + '<div style="font-size:1.4rem;font-weight:700;margin-top:4px;">'
+        + html.escape(value)
+        + "</div></div>"
+    )
 
 
 def split_tab_name(tab_name):
@@ -69,7 +105,7 @@ def split_tab_name(tab_name):
 # ------------------------------------------------------------------
 # Page
 # ------------------------------------------------------------------
-st.title("🎓 Student Marks")
+st.title("🎓 Sessional Marks Odd 2026")
 
 if st.button("🔄 Refresh data"):
     st.cache_data.clear()
@@ -97,9 +133,10 @@ tab_name = selected_university + " " + selected_semester
 # Step 3: student name
 try:
     data = load_tab(tab_name)
-except Exception:
+except Exception as error:
     st.error("Could not load the sheet tab: " + tab_name)
     st.info("Make sure the Google Sheet is shared as 'Anyone with the link can view'.")
+    st.code(type(error).__name__ + ": " + str(error))
     st.stop()
 
 selected_label = st.selectbox("Student name", data["Label"].tolist())
@@ -116,5 +153,5 @@ st.caption(selected_university + " • Semester " + selected_semester)
 
 columns = st.columns(len(subjects))
 for column, subject in zip(columns, subjects):
-    value = get_display_value(student[subject])
-    column.metric(subject, value)
+    value, kind = get_result(student[subject])
+    column.markdown(build_card(subject, value, kind), unsafe_allow_html=True)
