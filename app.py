@@ -120,7 +120,12 @@ for tab in SHEET_TABS:
     if university not in universities:
         universities.append(university)
 
-selected_university = st.selectbox("University", universities)
+selected_university = st.selectbox(
+    "University", universities, index=None, placeholder="Select University"
+)
+
+if selected_university is None:
+    st.stop()
 
 # Step 2: semester (only those that exist for the chosen university)
 semesters = []
@@ -129,7 +134,16 @@ for tab in SHEET_TABS:
     if university == selected_university:
         semesters.append(semester)
 
-selected_semester = st.selectbox("Semester", semesters)
+selected_semester = st.selectbox(
+    "Semester",
+    semesters,
+    index=None,
+    placeholder="Select Semester",
+    key="semester_" + selected_university,
+)
+
+if selected_semester is None:
+    st.stop()
 
 tab_name = selected_university + " " + selected_semester
 
@@ -142,7 +156,16 @@ except Exception as error:
     st.code(type(error).__name__ + ": " + str(error))
     st.stop()
 
-selected_label = st.selectbox("Student name", data["Label"].tolist())
+selected_label = st.selectbox(
+    "Student name",
+    data["Label"].tolist(),
+    index=None,
+    placeholder="Select Name",
+    key="name_" + tab_name,
+)
+
+if selected_label is None:
+    st.stop()
 
 # ------------------------------------------------------------------
 # Result
