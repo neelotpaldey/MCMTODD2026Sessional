@@ -18,6 +18,9 @@ SHEET_TABS = ["MGKVP 5", "MGKVP 3", "VBSPU 5", "VBSPU 3"]
 # Minimum marks needed to pass, for each university
 PASS_MARKS = {"MGKVP": 8.5, "VBSPU": 10.5}
 
+# Tabs where a student takes only one of these subjects (checked in this order)
+EITHER_OR_SUBJECTS = {"MGKVP 5": ["SPM", "NM"]}
+
 ABSENT_WORDS = ["ABS", "AB", "ABSENT"]
 MEDICAL_WORDS = ["ML"]
 
@@ -125,6 +128,34 @@ def build_card(subject, value, kind, icon):
     )
 
 
+def is_blank(raw_value):
+    text = str(raw_value).strip()
+    return text == "" or text.lower() == "nan"
+
+
+def get_subject_items(student, subjects, tab_name):
+    """Returns a list of (label, raw value) to show as cards."""
+    either_or = EITHER_OR_SUBJECTS.get(tab_name, [])
+    pair = [subject for subject in either_or if subject in subjects]
+    filled = [subject for subject in pair if not is_blank(student[subject])]
+    combined_label = "/".join(pair)
+    combined_added = False
+
+    items = []
+    for subject in subjects:
+        if subject not in pair:
+            items.append((subject, student[subject]))
+        elif len(filled) == 0:
+            # Both blank: show one combined card
+            if not combined_added:
+                items.append((combined_label, ""))
+                combined_added = True
+        elif subject in filled:
+            items.append((subject, student[subject]))
+
+    return items
+
+
 def split_tab_name(tab_name):
     parts = tab_name.split(" ")
     return parts[0], parts[-1]
@@ -208,8 +239,11 @@ st.caption(
     + str(PASS_MARKS[selected_university])
 )
 
-columns = st.columns(len(subjects))
-for column, subject in zip(columns, subjects):
-    value, kind = get_result(student[subject])
+items = get_subject_items(student, subjects, tab_name)
+
+columns = st.columns(len(items))
+for column, item in zip(columns, items):
+    label, raw_value = item
+    value, kind = get_result(raw_value)
     icon = get_pass_icon(value, kind, selected_university)
-    column.markdown(build_card(subject, value, kind, icon), unsafe_allow_html=True)
+    column.markdown(build_card(label, value, kind, icon), unsafe_allow_html=True)
