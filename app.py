@@ -1,5 +1,6 @@
 import html
 import io
+import re
 
 import pandas as pd
 import requests
@@ -18,13 +19,13 @@ SHEET_TABS = ["MGKVP 5", "MGKVP 3", "VBSPU 5", "VBSPU 3"]
 # Minimum marks needed to pass, for each university
 PASS_MARKS = {"MGKVP": 8.5, "VBSPU": 10.5}
 
-# The number after "gid=" in the browser address bar when each tab is open.
-# Fill these in so text marks (ML, ABS, JOB) are never dropped by Google.
+# Optional. The app now finds these numbers by itself, so you can leave them empty.
+# If the warning about gid still shows, paste the number after "gid=" here.
 SHEET_GIDS = {
-    "MGKVP 5": "",
-    "MGKVP 3": "",
-    "VBSPU 5": "",
-    "VBSPU 3": "",
+    "MGKVP 5": "0",
+    "MGKVP 3": "640255053",
+    "VBSPU 5": "2057130896",
+    "VBSPU 3": "1513077383",
 }
 
 # Tabs where a student takes only one of these subjects (checked in this order)
@@ -49,8 +50,38 @@ st.set_page_config(page_title="Sessional Marks Odd 2026", page_icon="🎓", layo
 # ------------------------------------------------------------------
 # Helper functions
 # ------------------------------------------------------------------
+@st.cache_data(ttl=3600)
+def discover_gids():
+    """Reads the tab names and their gid numbers from the sheet's preview page."""
+    page_url = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/htmlview"
+    found = {}
+
+    try:
+        response = requests.get(
+            page_url, timeout=20, headers={"User-Agent": "Mozilla/5.0"}
+        )
+        page = response.text
+    except Exception:
+        return found
+
+    pattern = r'id="sheet-button-(\d+)"[^>]*>(.*?)</li>'
+    for gid, inner in re.findall(pattern, page, re.DOTALL):
+        name = html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
+        found[name] = gid
+
+    return found
+
+
+def get_gid(tab_name):
+    typed_gid = SHEET_GIDS.get(tab_name, "")
+    if typed_gid != "":
+        return typed_gid
+
+    return discover_gids().get(tab_name, "")
+
+
 def build_csv_url(tab_name):
-    gid = SHEET_GIDS.get(tab_name, "")
+    gid = get_gid(tab_name)
 
     # Export gives every cell exactly as typed (recommended)
     if gid != "":
@@ -238,12 +269,11 @@ except Exception as error:
     st.code(type(error).__name__ + ": " + str(error))
     st.stop()
 
-if SHEET_GIDS.get(tab_name, "") == "":
+if get_gid(tab_name) == "":
     st.warning(
-        "gid not set for "
+        "Could not find the gid for "
         + tab_name
-        + ". Text marks like ML, ABS or JOB may show as Upcoming. "
-        + "Add the gid in SHEET_GIDS at the top of app.py."
+        + ". Text marks like ML, ABS or JOB may show as Upcoming."
     )
 
 selected_label = st.selectbox(
