@@ -36,7 +36,7 @@ def build_csv_url(tab_name):
     return (
         "https://docs.google.com/spreadsheets/d/"
         + SHEET_ID
-        + "/gviz/tq?tqx=out:csv&sheet="
+        + "/gviz/tq?tqx=out:csv&headers=1&sheet="
         + quote(tab_name)
     )
 
@@ -44,6 +44,9 @@ def build_csv_url(tab_name):
 def clean_dataframe(df):
     df = df.copy()
     df.columns = [str(col).strip() for col in df.columns]
+
+    if "Name" not in df.columns:
+        raise ValueError("Column 'Name' not found. Columns found: " + ", ".join(df.columns))
     df["Name"] = df["Name"].astype(str).str.strip()
     df = df[df["Name"] != ""]
     df = df.reset_index(drop=True)
