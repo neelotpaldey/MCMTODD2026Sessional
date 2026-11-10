@@ -114,6 +114,7 @@ def get_gid(tab_name):
 
 
 def build_csv_url(tab_name):
+
     gid = get_gid(tab_name)
 
     if gid:
@@ -142,15 +143,9 @@ def clean_dataframe(df):
         for col in df.columns
     ]
 
-    # Remove completely empty columns
-    non_empty_columns = df.apply(
-        lambda col: col.astype(str)
-        .str.strip()
-        .ne("")
-        .any()
-    )
-
-    df = df.loc[:, non_empty_columns]
+    # IMPORTANT:
+    # Do not remove completely empty subject columns.
+    # They must remain visible as Upcoming.
 
     if "Name" not in df.columns:
         raise ValueError(
@@ -166,7 +161,7 @@ def clean_dataframe(df):
 
     df = df[
         (df["Name"] != "")
-        & (df["Name"].str.lower() != "nan")
+        & (~df["Name"].str.lower().isin(["nan", "none", "null"]))
     ].copy()
 
     df = df.reset_index(drop=True)
@@ -217,18 +212,25 @@ def load_tab(tab_name):
 # ==============================================================
 
 def get_result(raw_value):
+    """Returns (display text, result type)."""
 
     value = str(raw_value).strip()
 
-    if value == "" or value.lower() == "nan":
+    # Blank values
+    if value == "" or value.lower() in [
+        "nan", "none", "null"
+    ]:
         return "Upcoming", "upcoming"
 
+    # Absent
     if value.upper() in ABSENT_WORDS:
         return "Absent", "absent"
 
+    # Medical
     if value.upper() in MEDICAL_WORDS:
         return "Medical", "medical"
 
+    # Job
     if value.upper() in JOB_WORDS:
         return "JOB", "job"
 
@@ -273,7 +275,7 @@ def build_card(subject, value, kind, icon):
         + background
         + ";color:"
         + text_color
-        + ";border:1px solid:"
+        + ";border:1px solid "
         + border
         + ';border-radius:10px;padding:14px 8px;'
         + 'text-align:center;min-height:100px;">'
@@ -300,7 +302,9 @@ def is_blank(raw_value):
 
     value = str(raw_value).strip()
 
-    return value == "" or value.lower() == "nan"
+    return value == "" or value.lower() in [
+        "nan", "none", "null"
+    ]
 
 
 def get_subject_items(student, subjects, tab_name):
@@ -339,6 +343,7 @@ def get_subject_items(student, subjects, tab_name):
         elif len(filled) == 0:
 
             if not combined_added:
+
                 items.append(
                     (combined_label, "")
                 )
@@ -371,11 +376,17 @@ st.caption(
     "Check your sessional examination marks."
 )
 
-# Refresh button
-if st.button("🔄 Refresh data", use_container_width=True):
+
+# --------------------------------------------------------------
+# REFRESH DATA
+# --------------------------------------------------------------
+
+if st.button(
+    "🔄 Refresh data",
+    use_container_width=True
+):
 
     st.cache_data.clear()
-
     st.rerun()
 
 
@@ -520,7 +531,10 @@ st.caption(
 )
 
 
-# Subject result items
+# --------------------------------------------------------------
+# SUBJECT RESULT ITEMS
+# --------------------------------------------------------------
+
 items = get_subject_items(
     student,
     subjects,
@@ -528,12 +542,13 @@ items = get_subject_items(
 )
 
 
-# Display cards
+# --------------------------------------------------------------
+# DISPLAY RESULT CARDS
+# --------------------------------------------------------------
+
 if items:
 
-    columns = st.columns(
-        min(len(items), 3)
-    )
+    columns = st.columns(3)
 
     for index, item in enumerate(items):
 
@@ -547,7 +562,7 @@ if items:
             selected_university
         )
 
-        with columns[index % len(columns)]:
+        with columns[index % 3]:
 
             st.markdown(
                 build_card(
@@ -571,5 +586,6 @@ else:
 st.divider()
 
 st.caption(
-    "Sessional Marks Odd 2026 | Made with ❤️ by Neelotpal Sir"
+    "Sessional Marks Odd 2026 | "
+    "Made with ❤️ by Neelotpal Sir"
 )
