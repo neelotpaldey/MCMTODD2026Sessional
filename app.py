@@ -1,4 +1,3 @@
-```python
 import html
 import io
 import re
@@ -574,4 +573,3 @@ st.divider()
 st.caption(
     "Sessional Marks Odd 2026 | Made with ❤️ by Neelotpal Sir"
 )
-```
