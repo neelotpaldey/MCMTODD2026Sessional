@@ -30,10 +30,10 @@ PASS_MARKS = {
 
 # Existing GIDs. Blank GIDs will be discovered automatically.
 SHEET_GIDS = {
-    "MGKVP 1": "",
+    "MGKVP 1": "655838173",
     "MGKVP 3": "640255053",
     "MGKVP 5": "0",
-    "VBSPU 1": "",
+    "VBSPU 1": "748415436",
     "VBSPU 3": "1513077383",
     "VBSPU 5": "2057130896",
 }
